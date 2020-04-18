@@ -1,0 +1,57 @@
+---
+title: "Car Accident Data"
+author: "chrlwhtng"
+date: "4/17/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Loading the data:
+```{r}
+library(readr) 
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(lubridate)
+
+data <- read_csv('US_Accidents_Dec19.csv')
+
+```
+
+
+Cleaning the data:
+```{r}
+#Select columns that will be useful in our research
+crashData <- data %>% select("ID", "Start_Time", "Start_Lat", "Start_Lng",
+                        "Street", "Side", "City", "County", "State", "Zipcode", 
+                        "Temperature(F)", "Wind_Chill(F)", "Humidity(%)", 
+                        "Pressure(in)", "Visibility(mi)", "Wind_Speed(mph)", 
+                        "Precipitation(in)", "Weather_Condition", "Sunrise_Sunset", 
+                        "Severity", "Description")
+
+#Drop NA Value Rows
+crashData <- crashData %>% na.omit()
+
+#Create "Date" Column from Start_Time Column
+#also creates "Time" column
+crashData <- crashData %>% separate(col=Start_Time, into=c("Date", "Time"), sep=" ")
+
+#Format date into a date column
+crashData$Date <- ymd(crashData$Date)
+
+head(crashData)
+```
+
+
+
+
+
+
+
+
+
+
+
