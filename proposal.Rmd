@@ -38,6 +38,6 @@ A brief plan for an exploratory analysis: What questions can be answered from th
 -What states have the most severe accidents?    
 -How do different seasons affect crash rates among states?    
 -How do the most populated cities (Des Moines, Cedar Rapids, Davenport) in Iowa compare in traffic accident rate?    
--Which year had the highest amount of accidents and did weather conditions affect those statistics?   
+-Which year had the highest amount of accidents and did weather conditions affect those statistics?    
 -Is there a difference between night and day in the rate of accidents and total accidents?    
 -Does the size of the city affect the severity of the traffic delays?   

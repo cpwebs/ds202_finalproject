@@ -1,6 +1,6 @@
 ---
 title: "Car Accident Data"
-author: "chrlwhtng"
+author: "Team 8"
 date: "4/17/2020"
 output: html_document
 ---
@@ -17,31 +17,14 @@ library(tidyr)
 library(tidyverse)
 library(lubridate)
 library(ggplot2)
-
 data <- read_csv('US_Accidents_Dec19.csv')
-
+population <- read_csv('co-est2019-alldata.csv')
 ```
+Cleaning the population data:
 
-
-Cleaning the data:
+Cleaning the accident data and then joining two dataframes:
 ```{r}
-#Select columns that will be useful in our research
-crashData <- data %>% select("ID", "Start_Time", "Start_Lat", "Start_Lng",
-                        "Street", "Side", "City", "County", "State", "Zipcode", 
-                        "Temperature(F)", "Wind_Chill(F)", "Humidity(%)", 
-                        "Pressure(in)", "Visibility(mi)", "Wind_Speed(mph)", 
-                        "Precipitation(in)", "Weather_Condition", "Sunrise_Sunset", 
-                        "Severity", "Description")
-
-#Drop NA Value Rows
-crashData <- crashData %>% na.omit()
-
-#Create "Date" Column from Start_Time Column
-#also creates "Time" column
-crashData <- crashData %>% separate(col=Start_Time, into=c("Date", "Time"), sep=" ")
-
-#Format date into a date column
-crashData$Date <- ymd(crashData$Date)
+final <- full_join(crashData,population3, by = c("County"))
 ```
 
 Main Question: 
@@ -124,9 +107,11 @@ Sub Questions:
 
 (Cole) 1. Does the population of states and counties affect accident rates, and in the counties with the highest populations does rush hour traffic times affect accident rates?
  
-(Possible dataset to merge with our dataset for population of US counties and States https://www.kaggle.com/joshuapaulbarnard/population-of-usa-by-counties)
-(Years on this dataset do not include 2019 so may need to find a new dataset for merging, also make sure to cite the dataset you end up using)
+```{r}
+q1 <- final %>% filter(County %in% c('Los Angeles','Cook','Harris','Maricopa','San Diego')) %>% group_by(Hour,County) %>% mutate(CountHour = n())
 
+ggplot(q1, aes(x = Hour, y = CountHour)) + geom_point(aes(color = factor(County))) + scale_y_continuous(breaks = seq(0, 6000, 1000),labels = function(x) format(x, scientific = FALSE)) + scale_x_continuous(breaks = seq(0, 23, 1)) + labs(title="Highest Populated County Accident Rates", x="Hour of Day", y="Number of Accidents",color="County")
+```
 
 (Jake) 2. Are traffic accidents more common in the day or night and in turn does a higher or lower latitude have any correlation to the amount of traffic accidents that occur?
 
@@ -140,6 +125,9 @@ First figure out the average temperature for each state and then group them into
 
 (Cole) 4. Show the distribution of visibility in traffic accidents in the US. What does the distribution tell us about the effects that different visibility levels have on how many traffic accidents occur?
 
+```{r}
+crashData %>% mutate(x_new = ifelse(`Visibility(mi)` > 11.5, 11.5, `Visibility(mi)`)) %>% ggplot(aes(x_new)) + geom_histogram(binwidth = 1, col = "black", fill = "cornflowerblue") + scale_y_continuous(breaks = seq(0, 600000, 100000),labels = function(x) format(x, scientific = FALSE)) + scale_x_continuous(breaks = seq(0, 11, 1)) + labs(title="Distribution of Visibility in Traffic Accidents in the US",x="Visibility in Miles",y="Number of Accidents")
+```
 
 (Charlie) 5. What are the most common weather conditions that occur during accidents? What states do these weather conditions occur at the highest rate in and are these states generally near the top of traffic accident rates when including all weather conditions?
 
