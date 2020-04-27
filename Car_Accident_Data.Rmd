@@ -16,6 +16,7 @@ library(dplyr)
 library(tidyr)
 library(tidyverse)
 library(lubridate)
+library(ggplot2)
 
 data <- read_csv('US_Accidents_Dec19.csv')
 
@@ -41,13 +42,81 @@ crashData <- crashData %>% separate(col=Start_Time, into=c("Date", "Time"), sep=
 
 #Format date into a date column
 crashData$Date <- ymd(crashData$Date)
-
-head(crashData)
 ```
 
 Main Question: 
 
 (Charlie) How do traffic accident rates compare between different regions in the US, and what variables in the dataset have the greatest association with accident rates that may cause these differences?
+
+```{r}
+crashPerState <- crashData %>% count(State)
+
+states <- map_data("state")
+
+#Remove DC, which is not in the states datframe.
+crashPerState <- crashPerState %>% filter(State != 'DC')
+
+#A list of all state names, to help  convert from "alabama" to "AL" to match crashData format.
+stateName <- state.name %>% tolower()
+states$State <- state.abb[match(states$region, stateName)]
+
+nomatch1 <- crashPerState %>% anti_join(states, by='State')
+unique(nomatch1$State) #Nothing missing.
+
+StateCrashData <- crashPerState %>% left_join(states, by='State')
+
+pop <- read_csv('USACountyPop.csv')
+
+#pop data for most recent year of record - 2018.
+pop <- pop %>% filter(Year == 2018)
+
+#Convert pop data from "Alabama" to "AL"
+pop$State <- tolower(pop$State)
+pop$State <- state.abb[match(pop$State, stateName)]
+pop <- pop %>% na.omit()
+
+#Add up county population to get state population
+pop <- pop %>% group_by(State) %>% mutate(StatePop = sum(Population))
+
+StateCrashData <- StateCrashData %>% left_join(pop, by='State')
+
+StateCrashData %>% ggplot(aes(x=long, y=lat)) + 
+  geom_polygon(aes(group=group, fill= n / StatePop * 1000)) + 
+  scale_fill_gradient(low='black', high='red')
+
+```
+
+```{r}
+crashPerCounty <- crashData %>% group_by(State) %>% count(County)
+
+county <- map_data("county")
+
+crashPerCounty$County <- tolower(crashPerCounty$County)
+county$County <- county$subregion
+
+crashPerCounty$County <- gsub("\\.", "", crashPerCounty$County)
+
+#Lots missing, not sure how to fix this
+nomatch2 <- crashPerCounty %>% anti_join(county, by='County')
+nomatch2
+
+CountyCrashData <- crashPerCounty %>% left_join(county, by='County')
+
+pop$County <- str_remove(pop$`County name`, " County")
+pop$County <- tolower(pop$County)
+
+#The same ones appear to be missing, if that means anything
+nomatch3 <- CountyCrashData %>% anti_join(pop, by='County')
+nomatch3
+
+CountyCrashData <- CountyCrashData %>% left_join(pop, by='County')
+
+CountyCrashData %>% ggplot(aes(x=long, y=lat)) + 
+  geom_polygon(aes(group=group, fill= n / Population * 1000)) + 
+  scale_fill_gradient(low='black', high='red')
+
+#Not done, but from this, I'm not sure it's worth doing.... not much red at all
+```
 
 Just make a choropleth map of accident rates for both states and counties in the US
 
@@ -73,6 +142,26 @@ First figure out the average temperature for each state and then group them into
 
 
 (Charlie) 5. What are the most common weather conditions that occur during accidents? What states do these weather conditions occur at the highest rate in and are these states generally near the top of traffic accident rates when including all weather conditions?
+
+```{r}
+crashData %>% group_by(Weather_Condition) %>% filter(n() > 1000) %>%
+  ggplot(aes(x=Weather_Condition)) + geom_bar(fill='black') + 
+  geom_text(stat='count', aes(label=stat(count), vjust = -.5), size=2) + 
+  theme(axis.text.x = element_text(angle=90, vjust=1, hjust=1, size=4)) + 
+  scale_y_continuous(labels=scales::comma) + xlab("Weather Condition") + 
+  ylab("Count of Crashes") + ggtitle("Count of Crashes by Weather Condition")
+```
+
+```{r}
+commonWeather <- crashData %>% filter(Weather_Condition == 'Cloudy' |
+        Weather_Condition ==  'Fair' | Weather_Condition == 'Light Rain' | 
+        Weather_Condition == 'Light Snow' | Weather_Condition == 'Mostly Cloudy' |
+        Weather_Condition == 'Partly Cloudy')
+
+commonWeather %>% group_by(State) %>% ggplot(aes(x=State)) + geom_bar(fill='black') + 
+  theme(axis.text.x = element_text(angle=90, vjust=1, hjust=1, size=4)) + 
+  ylab("Count of Crashes") + ggtitle("Count of Crashes in Common Weather Conditions by State")
+```
 
 (Shows how great of an affect these weather conditions can have on traffic accident rates answering most of the main question)
 
