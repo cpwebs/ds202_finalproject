@@ -83,9 +83,8 @@ ggplot(q1, aes(x = Hour, y = CountHour)) + geom_point(aes(color = factor(County)
 
 (Jake) 2. Are traffic accidents more common in the day or night and in turn does a higher or lower latitude have any correlation to the amount of traffic accidents that occur?
 
+
 ```{r}
-JakeCrash <- StateCrashData %>% mutate(Num_Accidents = n) %>% select(-n, -subregion)
-#First I want to See if Day or night has more crashes
 JakeCrash2 <- crashData
 JakeCrash2$Sunrise_Sunset <- factor(JakeCrash2$Sunrise_Sunset)
 JakeCrash2 %>% group_by(Sunrise_Sunset) %>% summarize(Num_Accidents = n()) %>% ggplot(aes(x = Sunrise_Sunset, y =Num_Accidents)) + geom_bar(stat= 'identity', fill = "blue4") + geom_text(aes(label = Num_Accidents), colour = "Black", vjust = 0) + ggtitle("Number of Accidents Day vs. Night") + xlab("Time of Day") + ylab("Number of Accidents")
@@ -96,6 +95,8 @@ JakeCrash2 %>% mutate(Month = month(Date)) %>% ggplot(aes(x = Start_Lat, fill = 
 JakeCrash2$Weather_Condition <- factor(JakeCrash2$Weather_Condition)
 JakeCrash2
 JakeCrash2 %>% group_by(Sunrise_Sunset) %>% summarize(Average_Visibility = mean(`Visibility(mi)`))
+
+
 #Put this quetion after the visibility question
 ```
 
@@ -104,6 +105,50 @@ JakeCrash2 %>% group_by(Sunrise_Sunset) %>% summarize(Average_Visibility = mean(
 
 
 (Jake) 3. How do warmer states compare with colder states in traffic accident rates during the summer? Do these rates change when conditioning the data only on winter months? Is this change in rates large enough to justify that harsh winter weather conditions have a high correlation to traffic accident rates?
+Is winter weather causing this change?
+Find the top 10 coldest states per accident on average find the bottom 10 coldest states per accident on averaage then 
+
+```{r}
+#Take the top 10 coldest states and the top 10 warmest states
+Temp <-final %>% group_by(State) %>% summarize(Average_Temp = mean(`Temperature(F)`))
+
+TempChloropleth <- Temp %>% left_join(states)
+TempChloropleth %>% ggplot(aes(x = long, y = lat, group = group, fill = Average_Temp)) + geom_polygon() + ggtitle("Average Temperature During Crashes in States") + scale_fill_distiller(palette = 'YlOrRd', direction = 1)
+
+Top5Hottest <- Temp %>% arrange(desc(Average_Temp))  %>% head(5)
+Top5Coldest <- Temp %>% arrange(Average_Temp) %>% head(5)
+
+Temp1 <-final %>% mutate(Month = month(Date))
+
+Summer <- Temp1 %>% filter(Month %in% c(6,7,8)) %>% group_by(State) %>% mutate(Number_of_Accidents_State = n(), Average_Temp_in_Season = mean(`Temperature(F)`))
+
+Winter <- Temp1 %>% filter(Month %in% c(12,1,2)) %>% group_by(State) %>% mutate(Number_of_Accidents_State = n(), Average_Temp_in_Season = mean(`Temperature(F)`))
+StatePopulation <- final %>% select(POPESTIMATE2019, State, County) %>% distinct(County, .keep_all = TRUE) %>% group_by(State) %>% summarize(State_Population = sum(POPESTIMATE2019))
+
+Summer <- Summer %>% left_join(StatePopulation) %>%
+  mutate(Accidents_Per_1000 = Number_of_Accidents_State/State_Population*1000) %>%
+  distinct(State, .keep_all = TRUE) %>% select(State,Accidents_Per_1000, Average_Temp_in_Season) %>%
+  mutate(Temperature_Throughout_Year = if_else(State %in% Top5Coldest$State, "Coldest", if_else(State %in% Top5Hottest$State, "Hottest", "In Between"))) %>% mutate(Season = 'Summer')
+
+Winter <- Winter %>% left_join(StatePopulation) %>%
+  mutate(Accidents_Per_1000 = Number_of_Accidents_State/State_Population*1000) %>% 
+  distinct(State, .keep_all = TRUE) %>% select(State,Accidents_Per_1000, Average_Temp_in_Season) %>%
+  mutate(Temperature_Throughout_Year = if_else(State %in% Top5Coldest$State, "Coldest", if_else(State %in% Top5Hottest$State, "Hottest", "In Between"))) %>% mutate(Season = 'Winter')
+
+full <- Summer %>% full_join(Winter)
+full$Season <- factor(full$Season)
+ColdestStates <- full %>% filter(Temperature_Throughout_Year == "Coldest")
+
+HottestStates <- full %>% filter(Temperature_Throughout_Year == "Hottest")
+
+ColdestStates %>% ggplot(aes(x = State, y = Accidents_Per_1000, fill = Season)) + geom_bar(position= "dodge", stat = 'identity') + ggtitle("Accident Rates of 5 Coldest States by Season")
+
+HottestStates %>% ggplot(aes(x = State, y = Accidents_Per_1000, fill = Season)) + geom_bar(position= "dodge", stat = 'identity') + ggtitle("Accident Rates of 5 Warmest States by Season")
+
+
+
+
+```
 
 First figure out the average temperature for each state and then group them into high and low temperature states by splitting them in half
 
