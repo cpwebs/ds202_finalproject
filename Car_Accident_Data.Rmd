@@ -34,71 +34,42 @@ Main Question:
 (Charlie) How do traffic accident rates compare between different regions in the US, and what variables in the dataset have the greatest association with accident rates that may cause these differences?
 
 ```{r}
-crashByState <- test3 %>% count(State)
+crashByState <- final %>% count(State) %>% filter(State != 'DC')
 
 states <- map_data("state")
 
-#Remove DC, which is not in the states datframe.
-crashByState <- crashByState %>% filter(State != 'DC')
+#state population data
+statePop <- read_csv('StatePop.csv') %>%
+  select('NAME', 'POPESTIMATE2019') 
 
-#A list of all state names, to help  convert from "alabama" to "AL" to match crashData format.
+#Format/Clean
+statePop <- statePop[c(2:9,11:52), ]
+
+#convert from "alabama" to "AL" to match crashByState format.
+statePop$NAME <- statePop$NAME %>% tolower()
 stateName <- state.name %>% tolower()
+statePop$State <- state.abb[match(statePop$NAME, stateName)]
+
+statePop <- statePop %>% select(-NAME)
+
+nomatch1 <- crashByState %>% anti_join(statePop, by='State')
+unique(nomatch1$State) #Nothing missing.
+
 states$State <- state.abb[match(states$region, stateName)]
 
-nomatch1 <- crashByState %>% anti_join(states, by='State')
-unique(nomatch1$State) #Nothing missing.
+states <- states %>% select(-'region', -'subregion')
 
 crashByState <- crashByState %>% left_join(states, by='State')
 
-#Convert pop data from "Alabama" to "AL"
-pop$State <- tolower(pop$State)
-pop$State <- state.abb[match(pop$State, stateName)]
-pop <- pop %>% na.omit()
+crashByState <- crashByState %>% left_join(statePop, by='State')
 
-#Add up county population to get state population
-pop <- pop %>% group_by(State) %>% mutate(StatePop = sum(Population))
-
-StateCrashData <- StateCrashData %>% left_join(pop, by='State')
-
-StateCrashData %>% ggplot(aes(x=long, y=lat)) + 
-  geom_polygon(aes(group=group, fill= n / StatePop * 1000)) + 
-  scale_fill_gradient(low='black', high='red')
+crashByState %>% ggplot(aes(x=long, y=lat)) + 
+  geom_polygon(aes(group=group, fill= n / POPESTIMATE2019 * 1000)) + 
+  scale_fill_gradient(low='black', high='red') + xlab("Longitude") + 
+  ylab("Latitude") + ggtitle("Traffic Accident Rate per US State")
 
 ```
-
-```{r}
-crashPerCounty <- crashData %>% group_by(State) %>% count(County)
-
-county <- map_data("county")
-
-crashPerCounty$County <- tolower(crashPerCounty$County)
-county$County <- county$subregion
-
-crashPerCounty$County <- gsub("\\.", "", crashPerCounty$County)
-
-#Lots missing, not sure how to fix this
-nomatch2 <- crashPerCounty %>% anti_join(county, by='County')
-nomatch2
-
-CountyCrashData <- crashPerCounty %>% left_join(county, by='County')
-
-pop$County <- str_remove(pop$`County name`, " County")
-pop$County <- tolower(pop$County)
-
-#The same ones appear to be missing, if that means anything
-nomatch3 <- CountyCrashData %>% anti_join(pop, by='County')
-nomatch3
-
-CountyCrashData <- CountyCrashData %>% left_join(pop, by='County')
-
-CountyCrashData %>% ggplot(aes(x=long, y=lat)) + 
-  geom_polygon(aes(group=group, fill= n / Population * 1000)) + 
-  scale_fill_gradient(low='black', high='red')
-
-#Not done, but from this, I'm not sure it's worth doing.... not much red at all
-```
-
-Just make a choropleth map of accident rates for both states and counties in the US
+Just make a choropleth map of accident rates for states in the US
 
 Sub Questions:
 
@@ -145,26 +116,42 @@ crashData %>% mutate(x_new = ifelse(`Visibility(mi)` > 11.5, 11.5, `Visibility(m
 (Charlie) 5. What are the most common weather conditions that occur during accidents? What states do these weather conditions occur at the highest rate in and are these states generally near the top of traffic accident rates when including all weather conditions?
 
 ```{r}
-crashData %>% group_by(Weather_Condition) %>% filter(n() > 1000) %>%
-  ggplot(aes(x=Weather_Condition)) + geom_bar(fill='black') + 
+crashData %>% group_by(Weather_Condition) %>% filter(n() > 10000) %>%
+  ggplot(aes(x=Weather_Condition)) + geom_bar(fill='blue') + 
   geom_text(stat='count', aes(label=stat(count), vjust = -.5), size=2) + 
-  theme(axis.text.x = element_text(angle=90, vjust=1, hjust=1, size=4)) + 
-  scale_y_continuous(labels=scales::comma) + xlab("Weather Condition") + 
+  theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1)) + 
+  scale_y_continuous(labels=scales::comma) + xlab("Weather Condition (More than 10,000 Occurences)") + 
   ylab("Count of Crashes") + ggtitle("Count of Crashes by Weather Condition")
 ```
 
-```{r}
-commonWeather <- crashData %>% filter(Weather_Condition == 'Cloudy' |
-        Weather_Condition ==  'Fair' | Weather_Condition == 'Light Rain' | 
-        Weather_Condition == 'Light Snow' | Weather_Condition == 'Mostly Cloudy' |
-        Weather_Condition == 'Partly Cloudy')
+*This graph shows the most common weather patterns during accidents throughout the United States. I will now see how each state is affected by these weather events.*
 
-commonWeather %>% group_by(State) %>% ggplot(aes(x=State)) + geom_bar(fill='black') + 
-  theme(axis.text.x = element_text(angle=90, vjust=1, hjust=1, size=4)) + 
-  ylab("Count of Crashes") + ggtitle("Count of Crashes in Common Weather Conditions by State")
+```{r}
+#Remove "fair", since the goal here is to identify crashes due to weather anomalies
+commonWeather <- crashData %>% filter(
+        Weather_Condition == 'Cloudy' | Weather_Condition == 'Light Rain' | 
+        Weather_Condition == 'Light Snow' | Weather_Condition == 'Mostly Cloudy' |
+        Weather_Condition == 'Partly Cloudy' | Weather_Condition == 'Fog' | 
+        Weather_Condition == 'Heavy Rain' | Weather_Condition == 'Rain' | 
+        Weather_Condition == 'Overcast')
+
+commonWeather <- commonWeather %>% group_by(State) %>% left_join(statePop, by='State')
+
+commonWeather <- commonWeather %>% mutate(n = n()) %>% 
+  mutate(crashRate = n / POPESTIMATE2019)
+
+commonWeather$Weather_Condition <- 
+  factor(commonWeather$Weather_Condition, 
+         levels = c("Heavy Rain", "Rain", "Light Rain", "Cloudy", "Mostly Cloudy", "Partly Cloudy", "Overcast", "Fog", "Light Snow"))
+
+commonWeather %>% ggplot(aes(x=State)) + coord_flip() + 
+  geom_bar(aes(fill=Weather_Condition), position="fill") + 
+  theme(axis.text.y = element_text(vjust=1, hjust=1, size=6)) +
+  ggtitle("Crash Percentage in Different Weather per State")
+  
 ```
 
-(Shows how great of an affect these weather conditions can have on traffic accident rates answering most of the main question)
+*It appears that states differ greatly in terms of how weather events affect them. North Dakota and Montana, for example, have close to or more than half of all crashes in their states during a snowy or foggy scenario.*
 
 (Juan) 6. What is the relationship between the amount of precipitation on the ground and the amount of accidents that happen? How does this relationship vary when conditioned on different types of precipitation(Snow, Sleet, Rain)?
 
