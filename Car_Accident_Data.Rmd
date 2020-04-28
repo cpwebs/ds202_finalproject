@@ -17,14 +17,16 @@ library(tidyr)
 library(tidyverse)
 library(lubridate)
 library(ggplot2)
-data <- read_csv('US_Accidents_Dec19.csv')
+
+crashData <- read_csv('US_Accidents_Dec19.csv')
 population <- read_csv('co-est2019-alldata.csv')
 ```
-Cleaning the population data:
+
+
 
 Cleaning the accident data and then joining two dataframes:
 ```{r}
-final <- full_join(crashData,population3, by = c("County"))
+final <- left_join(population, crashData, by=c('County'))
 ```
 
 Main Question: 
@@ -32,26 +34,21 @@ Main Question:
 (Charlie) How do traffic accident rates compare between different regions in the US, and what variables in the dataset have the greatest association with accident rates that may cause these differences?
 
 ```{r}
-crashPerState <- crashData %>% count(State)
+crashByState <- test3 %>% count(State)
 
 states <- map_data("state")
 
 #Remove DC, which is not in the states datframe.
-crashPerState <- crashPerState %>% filter(State != 'DC')
+crashByState <- crashByState %>% filter(State != 'DC')
 
 #A list of all state names, to help  convert from "alabama" to "AL" to match crashData format.
 stateName <- state.name %>% tolower()
 states$State <- state.abb[match(states$region, stateName)]
 
-nomatch1 <- crashPerState %>% anti_join(states, by='State')
+nomatch1 <- crashByState %>% anti_join(states, by='State')
 unique(nomatch1$State) #Nothing missing.
 
-StateCrashData <- crashPerState %>% left_join(states, by='State')
-
-pop <- read_csv('USACountyPop.csv')
-
-#pop data for most recent year of record - 2018.
-pop <- pop %>% filter(Year == 2018)
+crashByState <- crashByState %>% left_join(states, by='State')
 
 #Convert pop data from "Alabama" to "AL"
 pop$State <- tolower(pop$State)
