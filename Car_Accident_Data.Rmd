@@ -37,8 +37,9 @@ crashByState <- final %>% count(State) %>% filter(State != 'DC')
 states <- map_data("state")
 #state population data
 statePop <- read_csv('StatePop.csv') %>%
-  select('NAME', 'POPESTIMATE2019') 
+  select('NAME', 'POPESTIMATE2019') %>% mutate(POPESTIMATE2019STATE = POPESTIMATE2019) %>% select(-POPESTIMATE2019)
 #Format/Clean
+
 statePop <- statePop[c(2:9,11:52), ]
 #convert from "alabama" to "AL" to match crashByState format.
 statePop$NAME <- statePop$NAME %>% tolower()
@@ -52,7 +53,7 @@ states <- states %>% select(-'region', -'subregion')
 crashByState <- crashByState %>% left_join(states, by='State')
 crashByState <- crashByState %>% left_join(statePop, by='State')
 crashByState %>% ggplot(aes(x=long, y=lat)) + 
-  geom_polygon(aes(group=group, fill= n / POPESTIMATE2019 * 1000)) + 
+  geom_polygon(aes(group=group, fill= n / POPESTIMATE2019STATE * 1000)) + 
   scale_fill_gradient(low='black', high='red') + xlab("Longitude") + 
   ylab("Latitude") + ggtitle("Traffic Accident Rate per US State")
 ```
@@ -97,28 +98,29 @@ Find the top 10 coldest states per accident on average find the bottom 10 coldes
 Temp <-final %>% group_by(State) %>% summarize(Average_Temp = mean(`Temperature(F)`))
 TempChloropleth <- Temp %>% left_join(states)
 TempChloropleth %>% ggplot(aes(x = long, y = lat, group = group, fill = Average_Temp)) + geom_polygon() + ggtitle("Average Temperature During Crashes in States") + scale_fill_distiller(palette = 'YlOrRd', direction = 1)
-Top5Hottest <- Temp %>% arrange(desc(Average_Temp))  %>% head(5)
-Top5Coldest <- Temp %>% arrange(Average_Temp) %>% head(5)
-Top5Hottest
-Top5Coldest
+Top7Hottest <- Temp %>% arrange(desc(Average_Temp))  %>% head(7)
+Top7Coldest <- Temp %>% arrange(Average_Temp) %>% head(7)
+Top7Hottest
+Top7Coldest
 Temp1 <-final %>% mutate(Month = month(Date))
 Summer <- Temp1 %>% filter(Month %in% c(6,7,8)) %>% group_by(State) %>% mutate(Number_of_Accidents_State = n(), Average_Temp_in_Season = mean(`Temperature(F)`))
 Winter <- Temp1 %>% filter(Month %in% c(12,1,2)) %>% group_by(State) %>% mutate(Number_of_Accidents_State = n(), Average_Temp_in_Season = mean(`Temperature(F)`))
-StatePopulation <- final %>% select(POPESTIMATE2019, State, County) %>% distinct(County, .keep_all = TRUE) %>% group_by(State) %>% summarize(State_Population = sum(POPESTIMATE2019))
-Summer <- Summer %>% left_join(StatePopulation) %>%
-  mutate(Accidents_Per_1000 = Number_of_Accidents_State/State_Population*1000) %>%
+StatePopulation <- final %>% select(POPESTIMATE2019, State, County) %>% distinct(County, .keep_all = TRUE) %>% group_by(State) %>% summarize(State_Population = sum(POPESTIMATE2019)) 
+
+Summer <- Summer %>% left_join(statePop) %>%
+  mutate(Accidents_Per_1000 = Number_of_Accidents_State/POPESTIMATE2019STATE*1000) %>%
   distinct(State, .keep_all = TRUE) %>% select(State,Accidents_Per_1000, Average_Temp_in_Season) %>%
-  mutate(Temperature_Throughout_Year = if_else(State %in% Top5Coldest$State, "Coldest", if_else(State %in% Top5Hottest$State, "Hottest", "In Between"))) %>% mutate(Season = 'Summer')
-Winter <- Winter %>% left_join(StatePopulation) %>%
-  mutate(Accidents_Per_1000 = Number_of_Accidents_State/State_Population*1000) %>% 
+  mutate(Temperature_Throughout_Year = if_else(State %in% Top7Coldest$State, "Coldest", if_else(State %in% Top7Hottest$State, "Hottest", "In Between"))) %>% mutate(Season = 'Summer')
+Winter <- Winter %>% left_join(statePop) %>%
+  mutate(Accidents_Per_1000 = Number_of_Accidents_State/POPESTIMATE2019STATE*1000) %>% 
   distinct(State, .keep_all = TRUE) %>% select(State,Accidents_Per_1000, Average_Temp_in_Season) %>%
-  mutate(Temperature_Throughout_Year = if_else(State %in% Top5Coldest$State, "Coldest", if_else(State %in% Top5Hottest$State, "Hottest", "In Between"))) %>% mutate(Season = 'Winter')
+  mutate(Temperature_Throughout_Year = if_else(State %in% Top7Coldest$State, "Coldest", if_else(State %in% Top7Hottest$State, "Hottest", "In Between"))) %>% mutate(Season = 'Winter')
 full <- Summer %>% full_join(Winter)
 full$Season <- factor(full$Season)
 ColdestStates <- full %>% filter(Temperature_Throughout_Year == "Coldest")
 HottestStates <- full %>% filter(Temperature_Throughout_Year == "Hottest")
-ColdestStates %>% ggplot(aes(x = State, y = Accidents_Per_1000, fill = Season)) + geom_bar(position= "dodge", stat = 'identity') + ggtitle("Accident Rates of 5 Coldest States by Season")
-HottestStates %>% ggplot(aes(x = State, y = Accidents_Per_1000, fill = Season)) + geom_bar(position= "dodge", stat = 'identity') + ggtitle("Accident Rates of 5 Warmest States by Season")
+ColdestStates %>% ggplot(aes(x = State, y = Accidents_Per_1000, fill = Season)) + geom_bar(position= "dodge", stat = 'identity') + ggtitle("Accident Rates of 7 Coldest States by Season")
+HottestStates %>% ggplot(aes(x = State, y = Accidents_Per_1000, fill = Season)) + geom_bar(position= "dodge", stat = 'identity') + ggtitle("Accident Rates of 7 Warmest States by Season")
 ```
 
 First figure out the average temperature for each state and then group them into high and low temperature states by splitting them in half
@@ -152,7 +154,7 @@ commonWeather <- crashData %>% filter(
         Weather_Condition == 'Overcast')
 commonWeather <- commonWeather %>% group_by(State) %>% left_join(statePop, by='State')
 commonWeather <- commonWeather %>% mutate(n = n()) %>% 
-  mutate(crashRate = n / POPESTIMATE2019)
+  mutate(crashRate = n / POPESTIMATE2019STATE)
 commonWeather$Weather_Condition <- 
   factor(commonWeather$Weather_Condition, 
          levels = c("Heavy Rain", "Rain", "Light Rain", "Cloudy", "Mostly Cloudy", "Partly Cloudy", "Overcast", "Fog", "Light Snow"))
