@@ -17,14 +17,14 @@ library(tidyr)
 library(tidyverse)
 library(lubridate)
 library(ggplot2)
-data <- read_csv('US_Accidents_Dec19.csv')
+crashData <- read_csv('US_Accidents_Dec19.csv')
 population <- read_csv('co-est2019-alldata.csv')
 ```
 Cleaning the population data:
 
 Cleaning the accident data and then joining two dataframes:
 ```{r}
-final <- full_join(crashData,population3, by = c("County"))
+final <- full_join(crashData,population, by = c("County"))
 ```
 
 Main Question: 
@@ -110,7 +110,7 @@ Sub Questions:
 ```{r}
 q1 <- final %>% filter(County %in% c('Los Angeles','Cook','Harris','Maricopa','San Diego')) %>% group_by(Hour,County) %>% mutate(CountHour = n())
 
-ggplot(q1, aes(x = Hour, y = CountHour)) + geom_point(aes(color = factor(County))) + scale_y_continuous(breaks = seq(0, 6000, 1000),labels = function(x) format(x, scientific = FALSE)) + scale_x_continuous(breaks = seq(0, 23, 1)) + labs(title="Highest Populated County Accident Rates", x="Hour of Day", y="Number of Accidents",color="County")
+ggplot(q1, aes(x = Hour, y = CountHour)) + scale_y_continuous(breaks = seq(0, 6000, 1000),labels = function(x) format(x, scientific = FALSE)) + scale_x_continuous(breaks = seq(0, 23, 1)) + labs(title="Highest Populated County Accident Rates", x="Hour of Day", y="Number of Accidents",color="County") + geom_line(aes(color = factor(County)))
 ```
 
 (Jake) 2. Are traffic accidents more common in the day or night and in turn does a higher or lower latitude have any correlation to the amount of traffic accidents that occur?
