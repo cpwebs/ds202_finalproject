@@ -52,7 +52,7 @@ states$State <- state.abb[match(states$region, stateName)]
 states <- states %>% select(-'region', -'subregion')
 crashByState <- crashByState %>% left_join(states, by='State')
 crashByState <- crashByState %>% left_join(statePop, by='State')
-crashByState %>% ggplot(aes(x=long, y=lat)) + geom_polygon(aes(group=group, fill= n / POPESTIMATE2019STATE * 1000)) + scale_fill_distiller(trans='log', palette = 'YlGn', direction = 1) + xlab("Longitude") + ylab("Latitude") + ggtitle("Traffic Accident Rate per US State") + labs(fill="Crash Rate per 1000")
+crashByState %>% ggplot(aes(x=long, y=lat)) + geom_polygon(aes(group=group, fill= n / POPESTIMATE2019STATE * 1000)) + scale_fill_distiller(trans='log', palette = 'YlGn', direction = 1) + xlab("Longitude") + ylab("Latitude") + ggtitle("Traffic Accident Rate per US State") + labs(fill="Crash Rate (x 1000)")
 ```
 
 Sub Questions:
@@ -184,7 +184,13 @@ precip <- precip %>% filter(
         Weather_Condition == 'Rain' | Weather_Condition == 'Heavy T-Storm' | 
         Weather_Condition == 'Heavy Rain' | Weather_Condition == 'T-Storm' | 
         Weather_Condition == 'Light T-Storm') 
-precip %>% ggplot(aes(x=`Precipitation(in)`, fill = Weather_Condition)) + geom_histogram(bins = 40) + scale_x_continuous(breaks = seq(0, 1,.1), lim = c(0, 1))
+
+precip %>% ggplot(aes(x=`Precipitation(in)`, fill = Weather_Condition)) + 
+  geom_histogram(bins = 40) + 
+  scale_x_continuous(breaks = seq(0, 1,.1), lim = c(0, 1)) + 
+  ylab("Count of Crashes (2016-2019)")
+
+
 ```
 
 (Juan) 7. Between the 2017 and 2019 how have the amount of accidents changed over all States in the US? What States accident rate has increased the most and which has decreased the most? What may be the reason for this?
