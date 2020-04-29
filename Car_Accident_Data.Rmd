@@ -76,7 +76,6 @@ JakeCrash2 %>% mutate(Month = month(Date)) %>% ggplot(aes(x = Start_Lat, fill = 
 #This histogram shows that during the summer months almost all of the accidents happen during the day yet during the winter months they almost are half of the proportion of all accidents that happen. This is because daylight hours decrease during the winter. One trend in this histogram is also the fact that especially during the winter months generally as you increase in lattitude so does the proportion of night accidents the reasoning for this is as your lattitude increases daylight hours during the winter decrease more and more as you go up so its makes sense that they would be represented more heavily during the winter months. More people are forced to drive in the nighttime because not as much daylight and even though our data says more accidents occur in the daylight there are probably underlying variables that are affecting this such as sleep habits and people not wanting to drive at night. Yet eexpecially in northern regions people are forced to drive at night as the number of daylight hours decreses.
 #Visibility is the main reason why driving at night is more difficult than in the day in actuality.
 JakeCrash2$Weather_Condition <- factor(JakeCrash2$Weather_Condition)
-JakeCrash2
 JakeCrash2 %>% group_by(Sunrise_Sunset) %>% summarize(Average_Visibility = mean(`Visibility(mi)`))
 #Put this quetion after the visibility question
 ```
@@ -167,7 +166,6 @@ commonWeather %>% ggplot(aes(x=State)) + coord_flip() +
 
 ```{r}
 precip <- final %>% filter(`Precipitation(in)` != 0.00) %>% mutate(CountHour = n())
-precip
 ```
 ```{r}
 precip <- precip %>% filter(
@@ -186,34 +184,28 @@ precip <- precip %>% filter(
         Weather_Condition == 'Rain' | Weather_Condition == 'Heavy T-Storm' | 
         Weather_Condition == 'Heavy Rain' | Weather_Condition == 'T-Storm' | 
         Weather_Condition == 'Light T-Storm') 
-precip %>% ggplot(aes(x=`Precipitation(in)`, fill = Weather_Condition)) + geom_histogram(bins = 40) + scale_x_continuous(breaks = seq(0, 1.1), lim = c(0, 1))
+precip %>% ggplot(aes(x=`Precipitation(in)`, fill = Weather_Condition)) + geom_histogram(bins = 40) + scale_x_continuous(breaks = seq(0, 1,.1), lim = c(0, 1))
 ```
 
-(Juan) 7. Between the first year and last year how have accident rates changed over all counties in the US? What counties accident rate has increased the most and which has decreased the most? What may be the reason for this?
+(Juan) 7. Between the 2017 and 2019 how have the amount of accidents changed over all States in the US? What States accident rate has increased the most and which has decreased the most? What may be the reason for this?
+
 
 ```{r}
+dat2017 <-final %>% mutate(year = year(Date)) %>% filter(year == 2017) %>% group_by(State) %>% summarize(Occurences_State_2017 = n())
+dat2019 <- final %>% mutate(year = year(Date)) %>% filter(year == 2019) %>% group_by(State) %>% summarize(Occurences_State_2019 = n())
+
+Counties <- map_data("county") %>% mutate(County = subregion) %>% select(-subregion)
+both <- full_join(dat2017, dat2019)
+
+both <- both %>% mutate(Difference = Occurences_State_2019 - Occurences_State_2017)
+difference <- left_join(both, states)
+difference %>% ggplot(aes(x = long, y = lat, group = group, fill = Difference)) + geom_polygon() + scale_fill_distiller(palette = 'Blues',direction =1 ) + ggtitle("Difference in Traffic Accidents from 2017 to 2019 (2019-2017)")
 
 
-correctYears <- final %>% mutate(Year = format(as.Date(Date, format = "%d/%m/%Y"), "%Y"))%>% filter(Year == "2019" | Year == "2016") 
-states <- map_data("state")
-correctYears <- correctYears  %>% left_join(states, by='State')
-correctYears$Year <- as.numeric(correctYears$Year)
-```
-
-```{r}
-correctYears <- correctYears[order(correctYears$Year),]
-correctYears <- correctYears[1:299436,]
-summary(correctYears$Year)
-```
-```{r}
-Counties <- correctYears %>% mutate(CountHour = n())
-```
-
-```{r}
-Counties %>% ggplot(aes(x = Year, y = Start_Lat)) + 
-  geom_polygon(aes(group=Year, fill= CountHour)) + 
-  scale_fill_gradient(low='green', high='orange') + xlab("Longitude") + 
-  ylab("Latitude") + ggtitle("Comparison of crashes between 2016 and 2019")
+IncreasedMost <- both %>% select(-Occurences_State_2017, -Occurences_State_2019) %>% arrange(desc(Difference)) %>% head(1)
+DecreasedMost <- both %>% select(-Occurences_State_2017, -Occurences_State_2019) %>% arrange(Difference) %>% head(1)
+IncreasedMost
+DecreasedMost
 ```
 
 
