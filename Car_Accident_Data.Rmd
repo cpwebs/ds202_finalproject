@@ -70,7 +70,7 @@ ggplot(q1, aes(x = Hour, y = CountHour)) + scale_y_continuous(breaks = seq(0, 60
 ```{r}
 JakeCrash2 <- crashData
 JakeCrash2$Sunrise_Sunset <- factor(JakeCrash2$Sunrise_Sunset)
-JakeCrash2 %>% group_by(Sunrise_Sunset) %>% summarize(Num_Accidents = n()) %>% ggplot(aes(x = Sunrise_Sunset, y =Num_Accidents)) + geom_bar(stat= 'identity', fill = "blue4") + geom_text(aes(label = Num_Accidents), colour = "Black", vjust = 0) + ggtitle("Number of Accidents Day vs. Night") + xlab("Time of Day") + ylab("Number of Accidents")
+JakeCrash2 %>% group_by(Sunrise_Sunset) %>% summarize(Num_Accidents = n()) %>% ggplot(aes(x = Sunrise_Sunset, y =Num_Accidents)) + geom_bar(stat= 'identity', fill = "blue4") + geom_text(aes(label = Num_Accidents), colour = "Black", vjust = 0) + ggtitle("Number of Accidents Day vs. Night") + xlab("Time of Day") + ylab("Number of Accidents") + scale_y_continuous(breaks = seq(0, 800000, 200000),labels = function(x) format(x, scientific = FALSE))
 #There are more accident occurences in the day than in the night
 JakeCrash2 %>% mutate(Month = month(Date)) %>% ggplot(aes(x = Start_Lat, fill = Sunrise_Sunset)) + geom_histogram(position = "fill",bindwith = 1.5) + facet_wrap(~Month) + ggtitle("Distribution of Number of Accidents by Latitude Faceted by Month") + xlab("Latitude") + ylab("Number of Accidents") + labs(fill = "Time of Day")
 #This histogram shows that during the summer months almost all of the accidents happen during the day yet during the winter months they almost are half of the proportion of all accidents that happen. This is because daylight hours decrease during the winter. One trend in this histogram is also the fact that especially during the winter months generally as you increase in lattitude so does the proportion of night accidents the reasoning for this is as your lattitude increases daylight hours during the winter decrease more and more as you go up so its makes sense that they would be represented more heavily during the winter months. More people are forced to drive in the nighttime because not as much daylight and even though our data says more accidents occur in the daylight there are probably underlying variables that are affecting this such as sleep habits and people not wanting to drive at night. Yet eexpecially in northern regions people are forced to drive at night as the number of daylight hours decreses.
@@ -90,6 +90,9 @@ Find the top 10 coldest states per accident on average find the bottom 10 coldes
 
 ```{r}
 #Take the top 10 coldest states and the top 10 warmest states
+final %>% arrange(desc(Start_Lat)) %>% select(Start_Lat) %>% head(1)
+final %>% arrange(Start_Lat) %>% select(Start_Lat) %>% head(1)
+
 Temp <-final %>% group_by(State) %>% summarize(Average_Temp = mean(`Temperature(F)`))
 TempChloropleth <- Temp %>% left_join(states)
 TempChloropleth %>% ggplot(aes(x = long, y = lat, group = group, fill = Average_Temp)) + geom_polygon() + ggtitle("Average Temperature During Crashes in States") + scale_fill_distiller(palette = 'YlOrRd', direction = 1)
