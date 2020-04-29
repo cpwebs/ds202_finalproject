@@ -192,10 +192,11 @@ precip %>% ggplot(aes(x=`Precipitation(in)`, fill = Weather_Condition)) + geom_h
 (Juan) 7. Between the first year and last year how have accident rates changed over all counties in the US? What counties accident rate has increased the most and which has decreased the most? What may be the reason for this?
 
 ```{r}
-states <- map_data("state")
-correctYears <- correctYears  %>% left_join(states, by='State')
+
 
 correctYears <- final %>% mutate(Year = format(as.Date(Date, format = "%d/%m/%Y"), "%Y"))%>% filter(Year == "2019" | Year == "2016") 
+states <- map_data("state")
+correctYears <- correctYears  %>% left_join(states, by='State')
 correctYears$Year <- as.numeric(correctYears$Year)
 ```
 
