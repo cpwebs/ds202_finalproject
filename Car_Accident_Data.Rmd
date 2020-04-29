@@ -17,7 +17,6 @@ library(tidyr)
 library(tidyverse)
 library(lubridate)
 library(ggplot2)
-
 crashData <- read_csv('US_Accidents_Dec19.csv')
 population <- read_csv('co-est2019-alldata.csv')
 ```
@@ -26,7 +25,7 @@ population <- read_csv('co-est2019-alldata.csv')
 
 Cleaning the accident data and then joining two dataframes:
 ```{r}
-final <- full_join(crashData,population, by = c("County"))
+final <- left_join(population, crashData, by=c('County'))
 ```
 
 Main Question: 
@@ -35,39 +34,27 @@ Main Question:
 
 ```{r}
 crashByState <- final %>% count(State) %>% filter(State != 'DC')
-
 states <- map_data("state")
-
 #state population data
 statePop <- read_csv('StatePop.csv') %>%
   select('NAME', 'POPESTIMATE2019') 
-
 #Format/Clean
 statePop <- statePop[c(2:9,11:52), ]
-
 #convert from "alabama" to "AL" to match crashByState format.
 statePop$NAME <- statePop$NAME %>% tolower()
 stateName <- state.name %>% tolower()
 statePop$State <- state.abb[match(statePop$NAME, stateName)]
-
 statePop <- statePop %>% select(-NAME)
-
 nomatch1 <- crashByState %>% anti_join(statePop, by='State')
 unique(nomatch1$State) #Nothing missing.
-
 states$State <- state.abb[match(states$region, stateName)]
-
 states <- states %>% select(-'region', -'subregion')
-
 crashByState <- crashByState %>% left_join(states, by='State')
-
 crashByState <- crashByState %>% left_join(statePop, by='State')
-
 crashByState %>% ggplot(aes(x=long, y=lat)) + 
   geom_polygon(aes(group=group, fill= n / POPESTIMATE2019 * 1000)) + 
   scale_fill_gradient(low='black', high='red') + xlab("Longitude") + 
   ylab("Latitude") + ggtitle("Traffic Accident Rate per US State")
-
 ```
 Just make a choropleth map of accident rates for states in the US
 
@@ -77,7 +64,6 @@ Sub Questions:
  
 ```{r}
 q1 <- final %>% filter(County %in% c('Los Angeles','Cook','Harris','Maricopa','San Diego')) %>% group_by(Hour,County) %>% mutate(CountHour = n())
-
 ggplot(q1, aes(x = Hour, y = CountHour)) + scale_y_continuous(breaks = seq(0, 6000, 1000),labels = function(x) format(x, scientific = FALSE)) + scale_x_continuous(breaks = seq(0, 23, 1)) + labs(title="Highest Populated County Accident Rates", x="Hour of Day", y="Number of Accidents",color="County") + geom_line(aes(color = factor(County)))
 ```
 
@@ -95,8 +81,6 @@ JakeCrash2 %>% mutate(Month = month(Date)) %>% ggplot(aes(x = Start_Lat, fill = 
 JakeCrash2$Weather_Condition <- factor(JakeCrash2$Weather_Condition)
 JakeCrash2
 JakeCrash2 %>% group_by(Sunrise_Sunset) %>% summarize(Average_Visibility = mean(`Visibility(mi)`))
-
-
 #Put this quetion after the visibility question
 ```
 
@@ -111,45 +95,30 @@ Find the top 10 coldest states per accident on average find the bottom 10 coldes
 ```{r}
 #Take the top 10 coldest states and the top 10 warmest states
 Temp <-final %>% group_by(State) %>% summarize(Average_Temp = mean(`Temperature(F)`))
-
 TempChloropleth <- Temp %>% left_join(states)
 TempChloropleth %>% ggplot(aes(x = long, y = lat, group = group, fill = Average_Temp)) + geom_polygon() + ggtitle("Average Temperature During Crashes in States") + scale_fill_distiller(palette = 'YlOrRd', direction = 1)
-
 Top5Hottest <- Temp %>% arrange(desc(Average_Temp))  %>% head(5)
 Top5Coldest <- Temp %>% arrange(Average_Temp) %>% head(5)
 Top5Hottest
 Top5Coldest
-
 Temp1 <-final %>% mutate(Month = month(Date))
-
 Summer <- Temp1 %>% filter(Month %in% c(6,7,8)) %>% group_by(State) %>% mutate(Number_of_Accidents_State = n(), Average_Temp_in_Season = mean(`Temperature(F)`))
-
 Winter <- Temp1 %>% filter(Month %in% c(12,1,2)) %>% group_by(State) %>% mutate(Number_of_Accidents_State = n(), Average_Temp_in_Season = mean(`Temperature(F)`))
 StatePopulation <- final %>% select(POPESTIMATE2019, State, County) %>% distinct(County, .keep_all = TRUE) %>% group_by(State) %>% summarize(State_Population = sum(POPESTIMATE2019))
-
 Summer <- Summer %>% left_join(StatePopulation) %>%
   mutate(Accidents_Per_1000 = Number_of_Accidents_State/State_Population*1000) %>%
   distinct(State, .keep_all = TRUE) %>% select(State,Accidents_Per_1000, Average_Temp_in_Season) %>%
   mutate(Temperature_Throughout_Year = if_else(State %in% Top5Coldest$State, "Coldest", if_else(State %in% Top5Hottest$State, "Hottest", "In Between"))) %>% mutate(Season = 'Summer')
-
 Winter <- Winter %>% left_join(StatePopulation) %>%
   mutate(Accidents_Per_1000 = Number_of_Accidents_State/State_Population*1000) %>% 
   distinct(State, .keep_all = TRUE) %>% select(State,Accidents_Per_1000, Average_Temp_in_Season) %>%
   mutate(Temperature_Throughout_Year = if_else(State %in% Top5Coldest$State, "Coldest", if_else(State %in% Top5Hottest$State, "Hottest", "In Between"))) %>% mutate(Season = 'Winter')
-
 full <- Summer %>% full_join(Winter)
 full$Season <- factor(full$Season)
 ColdestStates <- full %>% filter(Temperature_Throughout_Year == "Coldest")
-
 HottestStates <- full %>% filter(Temperature_Throughout_Year == "Hottest")
-
 ColdestStates %>% ggplot(aes(x = State, y = Accidents_Per_1000, fill = Season)) + geom_bar(position= "dodge", stat = 'identity') + ggtitle("Accident Rates of 5 Coldest States by Season")
-
 HottestStates %>% ggplot(aes(x = State, y = Accidents_Per_1000, fill = Season)) + geom_bar(position= "dodge", stat = 'identity') + ggtitle("Accident Rates of 5 Warmest States by Season")
-
-
-
-
 ```
 
 First figure out the average temperature for each state and then group them into high and low temperature states by splitting them in half
@@ -181,16 +150,12 @@ commonWeather <- crashData %>% filter(
         Weather_Condition == 'Partly Cloudy' | Weather_Condition == 'Fog' | 
         Weather_Condition == 'Heavy Rain' | Weather_Condition == 'Rain' | 
         Weather_Condition == 'Overcast')
-
 commonWeather <- commonWeather %>% group_by(State) %>% left_join(statePop, by='State')
-
 commonWeather <- commonWeather %>% mutate(n = n()) %>% 
   mutate(crashRate = n / POPESTIMATE2019)
-
 commonWeather$Weather_Condition <- 
   factor(commonWeather$Weather_Condition, 
          levels = c("Heavy Rain", "Rain", "Light Rain", "Cloudy", "Mostly Cloudy", "Partly Cloudy", "Overcast", "Fog", "Light Snow"))
-
 commonWeather %>% ggplot(aes(x=State)) + coord_flip() + 
   geom_bar(aes(fill=Weather_Condition), position="fill") + 
   theme(axis.text.y = element_text(vjust=1, hjust=1, size=6)) +
@@ -206,14 +171,3 @@ commonWeather %>% ggplot(aes(x=State)) + coord_flip() +
 (Juan) 7. Between the first year and last year how have accident rates changed over all counties in the US? What counties accident rate has increased the most and which has decreased the most? What may be the reason for this?
 
 For the reasoning lookup possible events that occured in the news in those counties in between the time start and end time that may have influenced such a drastic change
-
-
-
-
-
-
-
-
-
-
-
