@@ -52,12 +52,8 @@ states$State <- state.abb[match(states$region, stateName)]
 states <- states %>% select(-'region', -'subregion')
 crashByState <- crashByState %>% left_join(states, by='State')
 crashByState <- crashByState %>% left_join(statePop, by='State')
-crashByState %>% ggplot(aes(x=long, y=lat)) + 
-  geom_polygon(aes(group=group, fill= n / POPESTIMATE2019STATE * 1000)) + 
-  scale_fill_gradient(low='black', high='red') + xlab("Longitude") + 
-  ylab("Latitude") + ggtitle("Traffic Accident Rate per US State")
+crashByState %>% ggplot(aes(x=long, y=lat)) + geom_polygon(aes(group=group, fill= n / POPESTIMATE2019STATE * 1000)) + scale_fill_distiller(trans='log', palette = 'YlGn', direction = 1) + xlab("Longitude") + ylab("Latitude") + ggtitle("Traffic Accident Rate per US State") + labs(fill="Crash Rate per 1000")
 ```
-Just make a choropleth map of accident rates for states in the US
 
 Sub Questions:
 
