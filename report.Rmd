@@ -1,0 +1,245 @@
+---
+title: "How Car Accidents Make or Break Trips"
+author: "Cole Weber, Jake Baalson, Juan Simons, Charlie Whiting"
+date: "5/5/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Background
+
+Visiting all states in the United States of America is a common lifelong goal for many. Achieving this goal is oftentimes difficult due to traveling in unknown terrains and locations. It's important for travelers to prepare for anything different than what they are used to in their own state. This analysis of looking at the car accident dataset helps paint a clear picture of the most and least significant causes for accidents.
+
+There were two datasets used in this project involving the crash data and the population county data of the United States. These data sets were used based on their amount of given details of the crash and current up to date population. The crash data describes the amount of accidents in the United States from February 2016 to December 2019 with over 3 million records which is worth over 1 GB of data. There are 49 columns of data to be explored including categorical and continous variables.
+
+Loading the data:
+```{r,warning=FALSE,message=FALSE}
+library(readr) 
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+crashData <- read_csv('US_Accidents_Dec19.csv')
+population <- read_csv('co-est2019-alldata.csv')
+final <- left_join(population, crashData, by=c('County'))
+```
+
+# Cleaning the Dataset  
+
+Cleaning the population data:
+```{r, eval = FALSE}
+population1 <- select(population,6:19)
+population1$CTYNAME <- gsub(" County", "", population1$CTYNAME)
+population2 <- population1[-c(1,69,99,115,191,250,315,324,330,398,558,564,609,712,805,905,1011,1132,1197,1214,1239,1254,1338,1426,1509,1625,1682,1776,1794,1805,1827,1861,1924,2025,2079,2168,2246,2283,2351,2357,2404,2471,2567,2822,2852,2867,3001,3041,3097,3170),] 
+population3 <- select(population2,c(1,2,14))
+names(population3)[1] <- "State"
+names(population3)[2] <- "County"
+
+
+statePop <- read_csv('StatePop.csv') %>%
+  select('NAME', 'POPESTIMATE2019') 
+statePop
+#Format/Clean
+statePop <- statePop[c(2:9,11:52), ]
+#convert from "alabama" to "AL" to match crashByState format.
+statePop$NAME <- statePop$NAME %>% tolower()
+stateName <- state.name %>% tolower()
+statePop$State <- state.abb[match(statePop$NAME, stateName)]
+
+s
+```
+
+Cleaning the accident data and then joining two dataframes:
+```{r, eval = FALSE}
+crashData <- data %>% select("Start_Time", 
+                              "Start_Lat",
+                              "County", "State", 
+                              "Temperature(F)", 
+                              "Visibility(mi)", 
+                              "Precipitation(in)", 
+                              "Weather_Condition", 
+                              "Sunrise_Sunset")
+crashData <- crashData %>% na.omit()
+crashData <- crashData %>% separate(col=Start_Time, into=c("Date", "Time"), sep=" ")
+crashData$Date <- ymd(crashData$Date)
+crashData <- crashData %>% separate(col=Time, into=c("Hour", "Minute", "Second"), sep=":")
+crashData <- crashData[ -c(3,4) ]
+crashData$Hour <- as.numeric(crashData$Hour)
+
+accidentPopData <- full_join(crashData,population3, by = c("County"))
+accidentPopData <- accidentPopData %>% filter(County %in% c('Los Angeles','Cook','Harris','Maricopa','San Diego')) %>% group_by(Hour,County) %>% mutate(CountHour = n())
+```
+
+# Questions Raised
+
+### Main Question: How do traffic accident rates compare between different regions in the US, and what variables in the dataset have the greatest association with accident rates that may cause these differences?
+
+```{r}
+crashByState <- final %>% count(State) %>% filter(State != 'DC')
+states <- map_data("state")
+#state population data
+statePop <- read_csv('StatePop.csv') %>%
+  select('NAME', 'POPESTIMATE2019') %>% mutate(POPESTIMATE2019STATE = POPESTIMATE2019) %>% select(-POPESTIMATE2019)
+#Format/Clean
+statePop <- statePop[c(2:9,11:52), ]
+#convert from "alabama" to "AL" to match crashByState format.
+statePop$NAME <- statePop$NAME %>% tolower()
+stateName <- state.name %>% tolower()
+statePop$State <- state.abb[match(statePop$NAME, stateName)]
+statePop <- statePop %>% select(-NAME)
+nomatch1 <- crashByState %>% anti_join(statePop, by='State')
+unique(nomatch1$State) #Nothing missing.
+states$State <- state.abb[match(states$region, stateName)]
+states <- states %>% select(-'region', -'subregion')
+crashByState <- crashByState %>% left_join(states, by='State')
+crashByState <- crashByState %>% left_join(statePop, by='State')
+crashByState %>% ggplot(aes(x=long, y=lat)) + geom_polygon(aes(group=group, fill= n / POPESTIMATE2019STATE * 1000)) + scale_fill_distiller(trans='log', palette = 'YlGn', direction = 1) + xlab("Longitude") + ylab("Latitude") + ggtitle("Traffic Accident Rate per US State") + labs(fill="Crash Rate (x 1000)")
+```
+
+### **1. Does the population of states and counties affect accident rates, and in the counties with the highest populations does rush hour traffic times affect accident rates?**
+
+There is a clear spike in when rush hour times affect accident rates the most. From 7am to 9am and 4pm to 6pm, the most accidents occur due to most people going to and from work, school, and other activities from their day. Avoiding these hours not only saves the driver and the passengers time, but they lower the risk of getting in an accident. The safest way to avoid these times are driving earlier or later. If that's not an option, it's best to go for when the rush hour time is just beginning to rise or when it's near the end.
+
+One of the most interesting observations about the graphic below demonstrates that the rush hour time periods last longer than a hour. In bigger counties, such as the five used here, more population means more traffic accidents since there are more cars on the road. These counties aren't just indicative of higher populated counties but a majority of counties since most have a rush hour of some degree.
+ 
+```{r}
+q1 <- final %>% filter(County %in% c('Los Angeles','Cook','Harris','Maricopa','San Diego')) %>% group_by(Hour,County) %>% mutate(CountHour = n())
+ggplot(q1, aes(x = Hour, y = CountHour)) + scale_y_continuous(breaks = seq(0, 6000, 1000),labels = function(x) format(x, scientific = FALSE)) + scale_x_continuous(breaks = seq(0, 23, 1)) + labs(title="Highest Populated County Accident Rates", x="Hour of Day", y="Number of Accidents",color="County") + geom_line(aes(color = factor(County)))
+```
+
+### **2. Are traffic accidents more common in the day or night and in turn does a higher or lower latitude have any correlation to the amount of traffic accidents that occur?**
+
+
+```{r}
+JakeCrash2 <- crashData
+JakeCrash2$Sunrise_Sunset <- factor(JakeCrash2$Sunrise_Sunset)
+JakeCrash2 %>% group_by(Sunrise_Sunset) %>% summarize(Num_Accidents = n()) %>% ggplot(aes(x = Sunrise_Sunset, y =Num_Accidents)) + geom_bar(stat= 'identity', fill = "blue4") + geom_text(aes(label = Num_Accidents), colour = "Black", vjust = 0) + ggtitle("Number of Accidents Day vs. Night") + xlab("Time of Day") + ylab("Number of Accidents") + scale_y_continuous(breaks = seq(0, 800000, 200000),labels = function(x) format(x, scientific = FALSE))
+#There are more accident occurences in the day than in the night
+JakeCrash2 %>% mutate(Month = month(Date)) %>% ggplot(aes(x = Start_Lat, fill = Sunrise_Sunset)) + geom_histogram(position = "fill",binwidth = 1.5) + facet_wrap(~Month) + ggtitle("Distribution of Number of Accidents by Latitude Faceted by Month") + xlab("Latitude") + ylab("Number of Accidents") + labs(fill = "Time of Day")
+#This histogram shows that during the summer months almost all of the accidents happen during the day yet during the winter months they almost are half of the proportion of all accidents that happen. This is because daylight hours decrease during the winter. One trend in this histogram is also the fact that especially during the winter months generally as you increase in lattitude so does the proportion of night accidents the reasoning for this is as your lattitude increases daylight hours during the winter decrease more and more as you go up so its makes sense that they would be represented more heavily during the winter months. More people are forced to drive in the nighttime because not as much daylight and even though our data says more accidents occur in the daylight there are probably underlying variables that are affecting this such as sleep habits and people not wanting to drive at night. Yet eexpecially in northern regions people are forced to drive at night as the number of daylight hours decreses.
+#Visibility is the main reason why driving at night is more difficult than in the day in actuality.
+#JakeCrash2$Weather_Condition <- factor(JakeCrash2$Weather_Condition)
+#JakeCrash2 %>% group_by(Sunrise_Sunset) %>% summarize(Average_Visibility = mean(`Visibility(mi)`))
+```
+
+(Just Completely based on latitude for reasoning to see if a higher amount of daylight hours affects the amount of accidents)
+(This question is not to figure out if harsher weather conditions have an affect on traffic accidents)
+
+
+### **3. How do warmer states compare with colder states in traffic accident rates during the summer? Do these rates change when conditioning the data only on winter months? Is this change in rates large enough to justify that harsh winter weather conditions have a high correlation to traffic accident rates? Is winter weather causing this change?**
+Find the top 10 coldest states per accident on average find the bottom 10 coldest states per accident on averaage then 
+
+```{r}
+#Take the top 10 coldest states and the top 10 warmest states
+Temp <-final %>% group_by(State) %>% summarize(Average_Temp = mean(`Temperature(F)`))
+TempChloropleth <- Temp %>% left_join(states, by='State')
+TempChloropleth %>% ggplot(aes(x = long, y = lat, group = group, fill = Average_Temp)) + geom_polygon() + ggtitle("Average Temperature During Crashes in States") + scale_fill_distiller(palette = 'YlOrRd', direction = 1)
+Top7Hottest <- Temp %>% arrange(desc(Average_Temp))  %>% head(7)
+Top7Coldest <- Temp %>% arrange(Average_Temp) %>% head(7)
+Temp1 <-final %>% mutate(Month = month(Date))
+Summer <- Temp1 %>% filter(Month %in% c(6,7,8)) %>% group_by(State) %>% mutate(Number_of_Accidents_State = n(), Average_Temp_in_Season = mean(`Temperature(F)`))
+Winter <- Temp1 %>% filter(Month %in% c(12,1,2)) %>% group_by(State) %>% mutate(Number_of_Accidents_State = n(), Average_Temp_in_Season = mean(`Temperature(F)`))
+StatePopulation <- final %>% select(POPESTIMATE2019, State, County) %>% distinct(County, .keep_all = TRUE) %>% group_by(State) %>% summarize(State_Population = sum(POPESTIMATE2019)) 
+Summer <- Summer %>% left_join(statePop, by='State') %>%
+  mutate(Accidents_Per_1000 = Number_of_Accidents_State/POPESTIMATE2019STATE*1000) %>%
+  distinct(State, .keep_all = TRUE) %>% select(State,Accidents_Per_1000, Average_Temp_in_Season) %>%
+  mutate(Temperature_Throughout_Year = if_else(State %in% Top7Coldest$State, "Coldest", if_else(State %in% Top7Hottest$State, "Hottest", "In Between"))) %>% mutate(Season = 'Summer')
+Winter <- Winter %>% left_join(statePop, by='State') %>%
+  mutate(Accidents_Per_1000 = Number_of_Accidents_State/POPESTIMATE2019STATE*1000) %>% 
+  distinct(State, .keep_all = TRUE) %>% select(State,Accidents_Per_1000, Average_Temp_in_Season) %>%
+  mutate(Temperature_Throughout_Year = if_else(State %in% Top7Coldest$State, "Coldest", if_else(State %in% Top7Hottest$State, "Hottest", "In Between"))) %>% mutate(Season = 'Winter')
+full <- Summer %>% full_join(Winter,by = c("State", "Accidents_Per_1000", "Average_Temp_in_Season", "Temperature_Throughout_Year", "Season"))
+full$Season <- factor(full$Season)
+ColdestStates <- full %>% filter(Temperature_Throughout_Year == "Coldest")
+HottestStates <- full %>% filter(Temperature_Throughout_Year == "Hottest")
+ColdestStates %>% ggplot(aes(x = State, y = Accidents_Per_1000, fill = Season)) + geom_bar(position= "dodge", stat = 'identity') + ggtitle("Accident Rates of 7 Coldest States by Season")
+HottestStates %>% ggplot(aes(x = State, y = Accidents_Per_1000, fill = Season)) + geom_bar(position= "dodge", stat = 'identity') + ggtitle("Accident Rates of 7 Warmest States by Season")
+```
+
+First figure out the average temperature for each state and then group them into high and low temperature states by splitting them in half
+
+### **4. Show the distribution of visibility in traffic accidents in the US. What does the distribution tell us about the effects that different visibility levels have on how many traffic accidents occur?**
+
+Visibility is an important factor in car accidents, however, they are not one of the biggest causes in determining an accident. This is mainly because the amount of days where the visibility is dangerously low doesn't occur very often in a year. It appears that the default or standard distance of visibility of an accident is 10 miles. This means that on the average day of an accident it's not because of the visibility. 
+
+Obviously avoiding low visibility is important whenever traveling since it reduces reaction time between stopping and moving. Ultimately, traveling decisions can't be based off of conditions that happen very few times in the year, therefore, it's not needed to worry compared to other factors that would affect the crash rate more.
+
+```{r}
+crashData %>% mutate(x_new = ifelse(`Visibility(mi)` > 11.5, 11.5, `Visibility(mi)`)) %>% ggplot(aes(x_new)) + geom_histogram(binwidth = 1, col = "black", fill = "cornflowerblue") + scale_y_continuous(breaks = seq(0, 600000, 100000),labels = function(x) format(x, scientific = FALSE)) + scale_x_continuous(breaks = seq(0, 11, 1)) + labs(title="Distribution of Visibility in Traffic Accidents in the US",x="Visibility in Miles",y="Number of Accidents")
+```
+
+### **5. What are the most common weather conditions that occur during accidents? What states do these weather conditions occur at the highest rate in and are these states generally near the top of traffic accident rates when including all weather conditions?**
+
+```{r}
+crashData %>% group_by(Weather_Condition) %>% filter(n() > 10000) %>%
+  ggplot(aes(x=Weather_Condition)) + geom_bar(fill='blue') + 
+  geom_text(stat='count', aes(label=stat(count), vjust = -.5), size=2) + 
+  theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1)) + 
+  scale_y_continuous(labels=scales::comma) + xlab("Weather Condition (More than 10,000 Occurences)") + 
+  ylab("Count of Crashes") + ggtitle("Count of Crashes by Weather Condition")
+```
+
+*This graph shows the most common weather patterns during accidents throughout the United States. I will now see how each state is affected by these weather events.*
+
+```{r}
+commonWeather <- crashData %>% filter(
+        Weather_Condition == 'Cloudy' | Weather_Condition == 'Light Rain' | 
+        Weather_Condition == 'Light Snow' | Weather_Condition == 'Mostly Cloudy' |
+        Weather_Condition == 'Partly Cloudy' | Weather_Condition == 'Fog' | 
+        Weather_Condition == 'Heavy Rain' | Weather_Condition == 'Rain' | 
+        Weather_Condition == 'Overcast')
+commonWeather <- commonWeather %>% group_by(State) %>% left_join(statePop, by='State')
+commonWeather <- commonWeather %>% mutate(n = n()) %>% 
+  mutate(crashRate = n / POPESTIMATE2019STATE)
+commonWeather$Weather_Condition <- 
+  factor(commonWeather$Weather_Condition, 
+         levels = c("Heavy Rain", "Rain", "Light Rain", "Cloudy", "Mostly Cloudy", "Partly Cloudy", "Overcast", "Fog", "Light Snow"))
+commonWeather %>% ggplot(aes(x=State)) + coord_flip() + 
+  geom_bar(aes(fill=Weather_Condition), position="fill") + 
+  theme(axis.text.y = element_text(vjust=1, hjust=1, size=6)) +
+  ggtitle("Crash Percentage in Different Weather per State")
+  
+```
+
+*It appears that states differ greatly in terms of how weather events affect them. North Dakota and Montana, for example, have close to or more than half of all crashes in their states during a snowy or foggy scenario.*
+
+### **6. What is the relationship between the amount of precipitation on the ground and the amount of accidents that happen? How does this relationship vary when conditioned on different types of precipitation(Snow, Sleet, Rain)?**
+
+```{r}
+precip <- final %>% filter(`Precipitation(in)` != 0.00) %>% mutate(CountHour = n())
+
+precip <- precip %>% filter(
+        Weather_Condition == 'Snow' | Weather_Condition == 'Heavy Snow' | 
+        Weather_Condition == 'Light Snow' | Weather_Condition == 'Light Rain' |
+        Weather_Condition == 'Rain' | Weather_Condition == 'Heavy T-Storm' | 
+        Weather_Condition == 'Heavy Rain' | Weather_Condition == 'T-Storm' | 
+        Weather_Condition == 'Light T-Storm') 
+
+precip <- final %>% group_by(Weather_Condition) %>% mutate(n = n()) %>% filter(`Precipitation(in)` != 0.00)
+precip <- precip %>% filter(
+        Weather_Condition == 'Snow' | Weather_Condition == 'Heavy Snow' | 
+        Weather_Condition == 'Light Snow' | Weather_Condition == 'Light Rain' |
+        Weather_Condition == 'Rain' | Weather_Condition == 'Heavy T-Storm' | 
+        Weather_Condition == 'Heavy Rain' | Weather_Condition == 'T-Storm' | 
+        Weather_Condition == 'Light T-Storm') 
+precip %>% ggplot(aes(x=`Precipitation(in)`, fill = Weather_Condition)) + 
+  geom_histogram(bins = 40) + 
+  scale_x_continuous(breaks = seq(0, 1,.1), lim = c(0, 1)) + 
+  ylab("Count of Crashes (2016-2019)")
+```
+
+### **7. Between the 2017 and 2019 how have the amount of accidents changed over all States in the US? What States accident rate has increased the most and which has decreased the most? What may be the reason for this?**
+
+```{r}
+dat2017 <-final %>% mutate(year = year(Date)) %>% filter(year == 2017) %>% group_by(State) %>% summarize(Occurences_State_2017 = n())
+dat2019 <- final %>% mutate(year = year(Date)) %>% filter(year == 2019) %>% group_by(State) %>% summarize(Occurences_State_2019 = n())
+Counties <- map_data("county") %>% mutate(County = subregion) %>% select(-subregion)
+both <- full_join(dat2017, dat2019, by='State')
+both <- both %>% mutate(Difference = Occurences_State_2019 - Occurences_State_2017)
+difference <- left_join(both, states, by='State')
+difference %>% ggplot(aes(x = long, y = lat, group = group, fill = Difference)) + geom_polygon() + scale_fill_distiller(palette = 'Blues',direction =1 ) + ggtitle("Difference in Traffic Accidents from 2017 to 2019 (2019-2017)")
+```
