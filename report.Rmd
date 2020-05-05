@@ -129,22 +129,10 @@ There is a clear spike in traffic accidents in certain times of the day. The hig
 One of the most interesting observations about the graphic below is that the rush hour time periods are longer than one hour. In bigger counties, such as the five shown here, a higher population means there will be a higher traffic accident rate since there are more cars on the road. These counties aren't just indicative of higher populated counties, but a majority of counties since most have a rush hour of some degree.
 
 
-### **2. Are traffic accidents more common in the day or night and in turn does a higher or lower latitude have any correlation to the amount of traffic accidents that occur?**
-
-
-```{r}
-JakeCrash2 <- crashData
-JakeCrash2$Sunrise_Sunset <- factor(JakeCrash2$Sunrise_Sunset)
-JakeCrash2 %>% group_by(Sunrise_Sunset) %>% summarize(Num_Accidents = n()) %>% ggplot(aes(x = Sunrise_Sunset, y =Num_Accidents)) + geom_bar(stat= 'identity', fill = "blue4") + geom_text(aes(label = Num_Accidents), colour = "Black", vjust = 0) + ggtitle("Number of Accidents Day vs. Night") + xlab("Time of Day") + ylab("Number of Accidents") + scale_y_continuous(breaks = seq(0, 800000, 200000),labels = function(x) format(x, scientific = FALSE))
-#There are more accident occurences in the day than in the night
-JakeCrash2 %>% mutate(Month = month(Date)) %>% ggplot(aes(x = Start_Lat, fill = Sunrise_Sunset)) + geom_histogram(position = "fill",binwidth = 1.5) + facet_wrap(~Month) + ggtitle("Distribution of Number of Accidents by Latitude Faceted by Month") + xlab("Latitude") + ylab("Number of Accidents") + labs(fill = "Time of Day")
-```
-
-
-### **3. How do warmer states compare with colder states in traffic accident rates during the summer? Do these rates change when conditioning the data only on winter months? Is this change in rates large enough to justify that harsh winter weather conditions have a high correlation to traffic accident rates? Is winter weather causing this change?**
+### **2. How do warmer states compare with colder states in traffic accident rates during the summer? Do these rates change when conditioning the data only on winter months? Is this change in rates large enough to justify that harsh winter weather conditions have a high correlation to traffic accident rates? Is winter weather causing this change?**
 
 ```{r}
-#Take the top 10 coldest states and the top 10 warmest states
+#Take the top 7 coldest states and the top 7 warmest states
 Temp <-final %>% group_by(State) %>% summarize(Average_Temp = mean(`Temperature(F)`))
 TempChloropleth <- Temp %>% left_join(states, by='State')
 TempChloropleth %>% ggplot(aes(x = long, y = lat, group = group, fill = Average_Temp)) + geom_polygon() + ggtitle("Average Temperature During Crashes in States") + scale_fill_distiller(palette = 'YlOrRd', direction = 1)
@@ -170,7 +158,27 @@ ColdestStates %>% ggplot(aes(x = State, y = Accidents_Per_1000, fill = Season)) 
 HottestStates %>% ggplot(aes(x = State, y = Accidents_Per_1000, fill = Season)) + geom_bar(position= "dodge", stat = 'identity') + ggtitle("Accident Rates of 7 Warmest States by Season")
 ```
 
+	First, to get a clear picture of how the average temperature during accidents varies throughout states in the US, we created a choropleth map using ggplot. We then looked into two subsets of the data which were the top seven warmest and top seven coldest states on average during accidents. To achieve this we first grouped the data by State and then used the summarize function to show us the average temperature during crashes for each state. To find the top seven coldest and top seven warmest the arrange and head functions were used to appropriately subset the data into the groups specified. After correctly subsetting the data we wanted to see how conditioning the data by season affected the crash rates of these two subsets. To do this we created a summer and a winter dataset where we filtered out the summer and winter months respectively. We then went on to find the accident rate per 1000 people for every state in both the summer and winter datasets. We did this by joining the summer and winter datasets with the state population dataset. After this we used the mutate function to create a new column of the accident rates per 1000 people of each state, and also used the distinct function to keep only one occurrence of each state in each data set.
+	For ease of use datasets, I made a factor variable that kept track of if each state was one of the warmest 7 states, coldest 7 states, or in-between states, this would make for very easy graphing down the road.  I then went on to join the winter and summer datasets using a full join and called the new data set full. Then for my visualization, I subsetted my full dataset into two datasets called coldest and warmest states using the factor variable, which made this task very easy. I then went on to visualize the question by creating two grouped bar charts, one showing the accident rates of the 7 coldest states by season, and the other showing accident rates of the 7 warmest states by season. I did this by using ggplot and geom_bar where I specified the aesthetic to fill by season.
+	From looking at the two charts they showed that accident rates for colder states during the winter almost doubled accident rates for colder states during the summer. This change seems to be great enough to justify that harsher winter weather conditions play a part in accident rates increasing during the winter for colder states. Meaning that the answer to our question is yes colder weather conditions in more northern states do play a part in traffic accident rates increasing during the winter months.
+	
 
+### **3. Are traffic accidents more common in the day or night and in turn does a higher or lower latitude have any correlation to the amount of traffic accidents that occur?**
+
+
+```{r}
+JakeCrash2 <- crashData
+JakeCrash2$Sunrise_Sunset <- factor(JakeCrash2$Sunrise_Sunset)
+JakeCrash2 %>% group_by(Sunrise_Sunset) %>% summarize(Num_Accidents = n()) %>% ggplot(aes(x = Sunrise_Sunset, y =Num_Accidents)) + geom_bar(stat= 'identity', fill = "blue4") + geom_text(aes(label = Num_Accidents), colour = "Black", vjust = 0) + ggtitle("Number of Accidents Day vs. Night") + xlab("Time of Day") + ylab("Number of Accidents") + scale_y_continuous(breaks = seq(0, 800000, 200000),labels = function(x) format(x, scientific = FALSE))
+#There are more accident occurences in the day than in the night
+JakeCrash2 %>% mutate(Month = month(Date)) %>% ggplot(aes(x = Start_Lat, fill = Sunrise_Sunset)) + geom_histogram(position = "fill",binwidth = 1.5) + facet_wrap(~Month) + ggtitle("Distribution of Number of Accidents by Latitude Faceted by Month") + xlab("Latitude") + ylab("Number of Accidents") + labs(fill = "Time of Day")
+```
+
+To answer the question of when traffic accidents are most common we created a bar plot using ggplot showing the number of traffic accidents that occur during the day and night. To create this barplot we needed to group the data by the variable sunrise_sunset and then count the number of occurrences for each level of sunrise_sunset. This gave us a barplot that showed that traffic accidents are much more common in the day than the night. This finding did not seem to make much sense as it is assumed that night driving is much more dangerous than day driving. The reason for this confusing finding we believe is the presence of confounding variables like sleep schedules, as fewer people drive during the night because they are asleep. 
+
+Since we believe there are reasons for day accidents to be more common than night accidents other than the level of danger involved. We want to test if an increased number of nighttime hours is a reason why higher latitude (colder) states have an increased accident rate during the winter. To do this we used the ggplot histogram function to create a filled histogram that showed the proportion of accidents that occurred during the night by latitude and faceted this by month. From this visualization, we can see that during the summer months the proportion of accidents that occur during the night decreases as there are more daylight hours. During the winter months, almost half the accidents occur at night, this is because there is an increase in the number of nighttime hours. There is also a positive relationship between latitude and the proportion of night accidents that occur during the winter. This is due to higher latitudes having fewer daylight hours than lower latitudes, forcing people that live in these higher latitude states to drive at night as they have a very limited number of daylight hours. With all these observations we can conclude from our visualization that the amount of daylight hours is a reason why higher latitude (colder) states have an increased accident rate during the winter.
+	
+	
 ### **4. Show the distribution of visibility in traffic accidents in the US. What does the distribution tell us about the effects that different visibility levels have on how many traffic accidents occur?**
 
 ```{r}
