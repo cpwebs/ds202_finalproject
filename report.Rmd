@@ -138,10 +138,6 @@ JakeCrash2$Sunrise_Sunset <- factor(JakeCrash2$Sunrise_Sunset)
 JakeCrash2 %>% group_by(Sunrise_Sunset) %>% summarize(Num_Accidents = n()) %>% ggplot(aes(x = Sunrise_Sunset, y =Num_Accidents)) + geom_bar(stat= 'identity', fill = "blue4") + geom_text(aes(label = Num_Accidents), colour = "Black", vjust = 0) + ggtitle("Number of Accidents Day vs. Night") + xlab("Time of Day") + ylab("Number of Accidents") + scale_y_continuous(breaks = seq(0, 800000, 200000),labels = function(x) format(x, scientific = FALSE))
 #There are more accident occurences in the day than in the night
 JakeCrash2 %>% mutate(Month = month(Date)) %>% ggplot(aes(x = Start_Lat, fill = Sunrise_Sunset)) + geom_histogram(position = "fill",binwidth = 1.5) + facet_wrap(~Month) + ggtitle("Distribution of Number of Accidents by Latitude Faceted by Month") + xlab("Latitude") + ylab("Number of Accidents") + labs(fill = "Time of Day")
-#This histogram shows that during the summer months almost all of the accidents happen during the day yet during the winter months they almost are half of the proportion of all accidents that happen. This is because daylight hours decrease during the winter. One trend in this histogram is also the fact that especially during the winter months generally as you increase in lattitude so does the proportion of night accidents the reasoning for this is as your lattitude increases daylight hours during the winter decrease more and more as you go up so its makes sense that they would be represented more heavily during the winter months. More people are forced to drive in the nighttime because not as much daylight and even though our data says more accidents occur in the daylight there are probably underlying variables that are affecting this such as sleep habits and people not wanting to drive at night. Yet eexpecially in northern regions people are forced to drive at night as the number of daylight hours decreses.
-#Visibility is the main reason why driving at night is more difficult than in the day in actuality.
-#JakeCrash2$Weather_Condition <- factor(JakeCrash2$Weather_Condition)
-#JakeCrash2 %>% group_by(Sunrise_Sunset) %>% summarize(Average_Visibility = mean(`Visibility(mi)`))
 ```
 
 
@@ -178,7 +174,9 @@ HottestStates %>% ggplot(aes(x = State, y = Accidents_Per_1000, fill = Season)) 
 ### **4. Show the distribution of visibility in traffic accidents in the US. What does the distribution tell us about the effects that different visibility levels have on how many traffic accidents occur?**
 
 ```{r}
-crashData %>% mutate(x_new = ifelse(`Visibility(mi)` > 11.5, 11.5, `Visibility(mi)`)) %>% ggplot(aes(x_new)) + geom_histogram(binwidth = 1, col = "black", fill = "cornflowerblue") + scale_y_continuous(breaks = seq(0, 600000, 100000),labels = function(x) format(x, scientific = FALSE)) + scale_x_continuous(breaks = seq(0, 11, 1)) + labs(title="Distribution of Visibility in Traffic Accidents in the US",x="Visibility in Miles",y="Number of Accidents")
+#crashData %>% mutate(x_new = ifelse(`Visibility(mi)` > 11.5, 11.5, `Visibility(mi)`)) %>% ggplot(aes(x_new)) + geom_histogram(binwidth #= 1, col = "black", fill = "cornflowerblue") + scale_y_continuous(breaks = seq(0, 600000, 100000),labels = function(x) format(x, #scientific = FALSE)) + scale_x_continuous(breaks = seq(0, 11, 1)) + labs(title="Distribution of Visibility in Traffic Accidents in the #US",x="Visibility in Miles",y="Number of Accidents")
+
+#This graph was used in the presentation, but has been cut here. 
 ```
 
 Visibility is an important factor in car accidents, however, they are not one of the biggest causes in determining an accident. This is mainly because the amount of days where the visibility is dangerously low doesn't occur very often in a year. It appears that the default or standard distance of visibility of an accident is 10 miles. This means that on the average day of an accident it's not because of the visibility. 
@@ -198,31 +196,31 @@ crashData %>% group_by(Weather_Condition) %>% filter(n() > 10000) %>%
 
 #This graph shows the most common weather patterns during accidents throughout the United States. I will now see how each state is affected by these weather events.
 
-commonWeather <- crashData %>% filter(
-        Weather_Condition == 'Cloudy' | Weather_Condition == 'Light Rain' | 
-        Weather_Condition == 'Light Snow' | Weather_Condition == 'Mostly Cloudy' |
-        Weather_Condition == 'Partly Cloudy' | Weather_Condition == 'Fog' | 
-        Weather_Condition == 'Heavy Rain' | Weather_Condition == 'Rain' | 
-        Weather_Condition == 'Overcast')
-commonWeather <- commonWeather %>% group_by(State) %>% left_join(statePop, by='State')
-commonWeather <- commonWeather %>% mutate(n = n()) %>% 
-  mutate(crashRate = n / POPESTIMATE2019STATE)
-commonWeather$Weather_Condition <- 
-  factor(commonWeather$Weather_Condition, 
-         levels = c("Heavy Rain", "Rain", "Light Rain", "Cloudy", "Mostly Cloudy", "Partly Cloudy", "Overcast", "Fog", "Light Snow"))
-commonWeather %>% ggplot(aes(x=State)) + coord_flip() + 
-  geom_bar(aes(fill=Weather_Condition), position="fill") + 
-  theme(axis.text.y = element_text(vjust=1, hjust=1, size=6)) +
-  ggtitle("Crash Percentage in Different Weather per State")
+#commonWeather <- crashData %>% filter(
+#        Weather_Condition == 'Cloudy' | Weather_Condition == 'Light Rain' | 
+#        Weather_Condition == 'Light Snow' | Weather_Condition == 'Mostly Cloudy' |
+#        Weather_Condition == 'Partly Cloudy' | Weather_Condition == 'Fog' | 
+#       Weather_Condition == 'Heavy Rain' | Weather_Condition == 'Rain' | 
+#        Weather_Condition == 'Overcast')
+#commonWeather <- commonWeather %>% group_by(State) %>% left_join(statePop, by='State')
+#commonWeather <- commonWeather %>% mutate(n = n()) %>% 
+#  mutate(crashRate = n / POPESTIMATE2019STATE)
+#commonWeather$Weather_Condition <- 
+#  factor(commonWeather$Weather_Condition, 
+#        levels = c("Heavy Rain", "Rain", "Light Rain", "Cloudy", "Mostly Cloudy", "Partly Cloudy", "Overcast", "Fog", "Light Snow"))
+#commonWeather %>% ggplot(aes(x=State)) + coord_flip() + 
+#  geom_bar(aes(fill=Weather_Condition), position="fill") + 
+#  theme(axis.text.y = element_text(vjust=1, hjust=1, size=6)) +
+#  ggtitle("Crash Percentage in Different Weather per State")
   
 #It appears that states differ greatly in terms of how weather events affect them. North Dakota and Montana, for example, have close to or more than half of all crashes in their states during a snowy or foggy scenario.
+
+#This graph was used in the presentation, but has been cut here. 
 ```
 
 Creating the first chart was very easy. We added the count of each bar to the top of each bar, since it helps show the differences between bars that are somewhat close in height. 
 
-For the second chart, we wanted to use a filled bar plot to compare the rates of weather condition crashes in each state. During this process, we also rearranged the levels of the factor so it progressed somewhat naturally from one end of the plot to the other. This helps readability, along with letting the viewer try to compare different types of weather that are distinct but similar, for example, different types of rain. 
-
-One of the things we wanted to find out with our data set was the most common weather occurrences that occur during crashes, since different regions of the United States are more or less suceptible to different types of weather. We were surprised to find out that weather patterns do not affect crashes as much as we originally thought. Most crashes occur in fair weather, distantly followed by light rain and cloudy weather. When we did the second graph, we saw that certain states had crashes over 50% of the time in one weather condition that wasn't clear, and that caused us to be concerned. The main thing that we took away from these graphes is that the majority of the time, the weather is fair, and that the rest of the time is spread among the other categories. Because not every category is equal in appearance in nature, it is hard to compare them in the way that we tried.
+One of the things we wanted to find out with our data set was the most common weather occurrences that occur during crashes, since different regions of the United States are more or less suceptible to different types of weather. We were surprised to find out that weather patterns do not affect crashes as much as we originally thought. Most crashes occur in fair weather, distantly followed by light rain and cloudy weather. The main thing that we took away from this graph is that the majority of the time, the weather is fair, and that the rest of the time is spread among the other categories. Because not every category is equal in appearance in nature, it is hard to compare them in the way that we tried.
 
 
 ### **6. What is the relationship between the amount of precipitation on the ground and the amount of accidents that happen? How does this relationship vary when conditioned on different types of precipitation(Snow, Sleet, Rain)?**
