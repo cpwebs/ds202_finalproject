@@ -45,7 +45,6 @@ population2 <- population1[-c(1,69,99,115,191,250,315,324,330,398,558,564,609,71
 population3 <- select(population2,c(1,2,14))
 names(population3)[1] <- "State"
 names(population3)[2] <- "County"
-
 #State Population
 statePop <- read_csv('StatePop.csv') %>%
   select('NAME', 'POPESTIMATE2019') 
@@ -56,7 +55,6 @@ statePop <- statePop[c(2:9,11:52), ]
 statePop$NAME <- statePop$NAME %>% tolower()
 stateName <- state.name %>% tolower()
 statePop$State <- state.abb[match(statePop$NAME, stateName)]
-
 s
 ```
 
@@ -76,7 +74,6 @@ crashData$Date <- ymd(crashData$Date)
 crashData <- crashData %>% separate(col=Time, into=c("Hour", "Minute", "Second"), sep=":")
 crashData <- crashData[ -c(3,4) ]
 crashData$Hour <- as.numeric(crashData$Hour)
-
 accidentPopData <- full_join(crashData,population3, by = c("County"))
 accidentPopData <- accidentPopData %>% filter(County %in% c('Los Angeles','Cook','Harris','Maricopa','San Diego')) %>% group_by(Hour,County) %>% mutate(CountHour = n())
 ```
@@ -90,7 +87,7 @@ Using county data, for example, finding crash rates by county was very tough. Th
 
 ### **Main Question: How do traffic accident rates compare between different regions in the US, and what variables in the dataset have the greatest association with accident rates that may cause these differences?**
 
-```{r}
+```{r,warning=FALSE,message=FALSE}
 crashByState <- final %>% count(State) %>% filter(State != 'DC')
 states <- map_data("state")
 #state population data
@@ -166,7 +163,7 @@ HottestStates %>% ggplot(aes(x = State, y = Accidents_Per_1000, fill = Season)) 
 ### **3. Are traffic accidents more common in the day or night and in turn does a higher or lower latitude have any correlation to the amount of traffic accidents that occur?**
 
 
-```{r}
+```{r,warning=FALSE}
 JakeCrash2 <- crashData
 JakeCrash2$Sunrise_Sunset <- factor(JakeCrash2$Sunrise_Sunset)
 JakeCrash2 %>% group_by(Sunrise_Sunset) %>% summarize(Num_Accidents = n()) %>% ggplot(aes(x = Sunrise_Sunset, y =Num_Accidents)) + geom_bar(stat= 'identity', fill = "blue4") + geom_text(aes(label = Num_Accidents), colour = "Black", vjust = 0) + ggtitle("Number of Accidents Day vs. Night") + xlab("Time of Day") + ylab("Number of Accidents") + scale_y_continuous(breaks = seq(0, 800000, 200000),labels = function(x) format(x, scientific = FALSE))
@@ -183,7 +180,6 @@ Since we believe there are reasons for day accidents to be more common than nigh
 
 ```{r}
 #crashData %>% mutate(x_new = ifelse(`Visibility(mi)` > 11.5, 11.5, `Visibility(mi)`)) %>% ggplot(aes(x_new)) + geom_histogram(binwidth #= 1, col = "black", fill = "cornflowerblue") + scale_y_continuous(breaks = seq(0, 600000, 100000),labels = function(x) format(x, #scientific = FALSE)) + scale_x_continuous(breaks = seq(0, 11, 1)) + labs(title="Distribution of Visibility in Traffic Accidents in the #US",x="Visibility in Miles",y="Number of Accidents")
-
 #This graph was used in the presentation, but has been cut here. 
 ```
 
@@ -201,9 +197,7 @@ crashData %>% group_by(Weather_Condition) %>% filter(n() > 10000) %>%
   theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1)) + 
   scale_y_continuous(labels=scales::comma) + xlab("Weather Condition (More than 10,000 Occurences)") + 
   ylab("Count of Crashes") + ggtitle("Count of Crashes by Weather Condition")
-
 #This graph shows the most common weather patterns during accidents throughout the United States. I will now see how each state is affected by these weather events.
-
 #commonWeather <- crashData %>% filter(
 #        Weather_Condition == 'Cloudy' | Weather_Condition == 'Light Rain' | 
 #        Weather_Condition == 'Light Snow' | Weather_Condition == 'Mostly Cloudy' |
@@ -222,7 +216,6 @@ crashData %>% group_by(Weather_Condition) %>% filter(n() > 10000) %>%
 #  ggtitle("Crash Percentage in Different Weather per State")
   
 #It appears that states differ greatly in terms of how weather events affect them. North Dakota and Montana, for example, have close to or more than half of all crashes in their states during a snowy or foggy scenario.
-
 #This graph was used in the presentation, but has been cut here. 
 ```
 
@@ -233,16 +226,14 @@ One of the things we wanted to find out with our data set was the most common we
 
 ### **6. What is the relationship between the amount of precipitation on the ground and the amount of accidents that happen? How does this relationship vary when conditioned on different types of precipitation(Snow, Sleet, Rain)?**
 
-```{r}
+```{r,warning=FALSE}
 precip <- final %>% filter(`Precipitation(in)` != 0.00) %>% mutate(CountHour = n())
-
 precip <- precip %>% filter(
         Weather_Condition == 'Snow' | Weather_Condition == 'Heavy Snow' | 
         Weather_Condition == 'Light Snow' | Weather_Condition == 'Light Rain' |
         Weather_Condition == 'Rain' | Weather_Condition == 'Heavy T-Storm' | 
         Weather_Condition == 'Heavy Rain' | Weather_Condition == 'T-Storm' | 
         Weather_Condition == 'Light T-Storm') 
-
 precip <- final %>% group_by(Weather_Condition) %>% mutate(n = n()) %>% filter(`Precipitation(in)` != 0.00)
 precip <- precip %>% filter(
         Weather_Condition == 'Snow' | Weather_Condition == 'Heavy Snow' | 
@@ -286,6 +277,8 @@ Jacob was in charge of formulating the questions raised for the project. His mai
 
 Juan took care of our precipitation question, several slides and some of the writing of the report. The precipitation question was a bit tricky at first because as we created the question we visualized a completely different graph that we would use and time was spent attempting to make that work; that idea was scrapped and we moved on to our current graph. Since the precipitation is measured in inches, the amount of inches increase every hundredth after the decimal point, so we had to play around with bins, their size, setting limits as well as limiting the weather types to be analyzed as the data set has over 120 weather types.
 
+Cole was the project leader which involved communicating with Professor Dai and the TA. The role also included scheduling meetings and making sure everything went smoothly. When it came to the presentation, he worked on the first and fourth questions of the project regarding rush hour times and visibility. Along with creating and presenting these slides, the introduction slides such as the background, selecting data, cleaning data, and variables used. He contributed along with his other teammates to write some of the challenges faced, room for improvement, and ultimate conclusion of the analysis. Cole wrote and organized the outline of the report as well. In particular, he wrote his questions that he presented before and contributed greatly in the background, exploratory analysis, and conclusion paragraphs. 
+
 
 # Conclusion:
 There are many factors that go into accidents. Some are more important than others, but they all must be looked at. This ultimately leads us to one question. What affects crash rate the most, and what affects crash rate the least?
@@ -294,12 +287,12 @@ The variables that we concluded affected crash rates the most were rush hour tra
 
 
 # Works Cited
-'Horrific summer' pushes Oregon's traffic fatalities up. (2018, September 20). oregonlive. https://www.oregonlive.com/commuting/2018/09/horrific_summer_pushes_oregons.html
+'Horrific summer' pushes Oregon's traffic fatalities up. (2018, September 20). oregonlive. <https://www.oregonlive.com/commuting/2018/09/horrific_summer_pushes_oregons.html>
 
-State Population Totals. (n.d.). US Census Bureau. https://www2.census.gov/programs-surveys/popest/datasets/2010-2019/state/
+State Population Totals. (n.d.). US Census Bureau. <https://www2.census.gov/programs-surveys/popest/datasets/2010-2019/state/>
 
-States with the worst drivers 2019 -- SmartAsset. (2019, June 27). SmartAsset. https://smartasset.com/checking-account/states-worst-drivers-2019
+States with the worst drivers 2019 -- SmartAsset. (2019, June 27). SmartAsset. <https://smartasset.com/checking-account/states-worst-drivers-2019>
 
-US Accidents. (n.d.). Kaggle: Your Machine Learning and Data Science Community. https://www.kaggle.com/sobhanmoosavi/us-accident
+US Accidents. (n.d.). Kaggle: Your Machine Learning and Data Science Community. <https://www.kaggle.com/sobhanmoosavi/us-accident>
 
-US Census Bureau. (2020, March 26). County population totals: 2010-2019. The United States Census Bureau. https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-total.html
+US Census Bureau. (2020, March 26). County population totals: 2010-2019. The United States Census Bureau. <https://www.census.gov/data/tables/time-series/demo/popest/2010s-counties-total.html>
